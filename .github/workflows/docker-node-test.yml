@@ -1,22 +1,21 @@
 name: CI - Test and Deploy Docker Images
 
 on:
-  #push:
-   # branches:
-    #  - main 
-    #  - develop
-     # - fix-from-feedback
-    #paths-ignore:
-     # - 'README.md'
-      #- 'docs/**'
-  #pull_request:
-   # branches:
-    #  - main
-     # - develop
-    #paths-ignore:
-     # - 'README.md'
-      #- 'docs/**'
-  workflow_dispatch:
+  push:
+    branches:
+      - main 
+      - develop
+      - fix-from-feedback
+    paths-ignore:
+      - 'README.md'
+      - 'docs/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - 'README.md'
+      - 'docs/**'
 
 jobs:
   test-source-code:
