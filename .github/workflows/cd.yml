@@ -97,8 +97,8 @@ jobs:
       - name: Connect and Deploy Docker Containers on EC2
         env:
           PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
-          REPOSITORYBACK: "${{ secrets.DOCKER_USERNAME }}/foodadvisor-api"
-          REPOSITORYFRONT: "${{ secrets.DOCKER_USERNAME }}/foodadviro-client"
+          REPOSITORYBACK: "${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api"
+          REPOSITORYFRONT: "${{ secrets.DOCKERHUB_USERNAME }}/foodadviro-client"
         run: |
           # Save the private key from the secret to a file
           echo "$PRIVATE_KEY" > private_key.pem
@@ -129,7 +129,7 @@ jobs:
           sudo systemctl restart docker
 
           # Pull and run the backend container
-          sudo docker pull ${{ secrets.DOCKER_USERNAME }}/foodadvisor-api:latest
+          sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api:latest
           sudo docker run --name foodadvisor-api \
             -p 1337:1337 \
             -e HOST=0.0.0.0 \
@@ -137,7 +137,7 @@ jobs:
             -e STRAPI_ADMIN_CLIENT_URL=http://${{ env.INSTANCE_PUBLIC_IPV4 }}:3000/ \
             -e STRAPI_ADMIN_CLIENT_PREVIEW_SECRET=ARNFCb9zrC9ZHm5hZzCigWivD40icS4s \
             -v /path/on/host/uploads:/app/public/uploads \
-            -d ${{ secrets.DOCKER_USERNAME }}/foodadvisor-api:latest || { echo "Failed to run backend container"; exit 1; }
+            -d ${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api:latest || { echo "Failed to run backend container"; exit 1; }
             
           
           # ตรวจสอบสถานะของ backend container
@@ -152,11 +152,11 @@ jobs:
           
           # Pull และ run frontend container
           echo "Deploying Frontend Container..."
-          sudo docker pull ${{ secrets.DOCKER_USERNAME }}/foodadvisor-client:latest
+          sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-client:latest
           sudo docker run --name foodadvisor-client \
             -p 3000:3000 \
             -e NEXT_PUBLIC_API_URL=http://${{ env.INSTANCE_PUBLIC_IPV4 }}:1337/ \
             -e PREVIEW_SECRET=ARNFCb9zrC9ZHm5hZzCigWivD40icS4s \
-            -d ${{ secrets.DOCKER_USERNAME }}/foodadvisor-client:latest /bin/bash -c "npm install && npm run build && npm start"
+            -d ${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-client:latest /bin/bash -c "npm install && npm run build && npm start"
           
           EOF
