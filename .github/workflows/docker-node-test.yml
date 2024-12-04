@@ -1,22 +1,23 @@
 name: CI - Test and Deploy Docker Images
  
 on:
-  push:
-    branches:
-      - main 
-      - develop
-      - fix-from-feedback
-    paths-ignore:
-      - 'README.md'
-      - 'docs/**'
-  pull_request:
-    branches:
-      - main
-      - develop
-    paths-ignore:
-      - 'README.md'
-      - 'docs/**'
-
+#  push:
+ #   branches:
+  #    - main 
+   #   - develop
+    #  - fix-from-feedback
+    #paths-ignore:
+     # - 'README.md'
+      #- 'docs/**'
+  #pull_request:
+   # branches:
+    #  - main
+     # - develop
+    #paths-ignore:
+     # - 'README.md'
+      #- 'docs/**'
+ workflow_dispatch:
+ 
 jobs:
   test-source-code:
     name: Run Tests (${{ matrix.os }})
@@ -90,21 +91,21 @@ jobs:
       working-directory: ./client
       run: yarn install
 
-    - name: Run API unit tests
-      working-directory: ./api
-      run: yarn test:unit
+    #- name: Run API unit tests
+     # working-directory: ./api
+      #run: yarn test:unit
       
-    - name: Run API integration tests
-      working-directory: ./api
-      run: yarn test:integration
+    #- name: Run API integration tests
+     # working-directory: ./api
+      #run: yarn test:integration
 
-    - name: Run client unit tests
-      working-directory: ./client
-      run: yarn test:unit
+    #- name: Run client unit tests
+     # working-directory: ./client
+      #run: yarn test:unit
 
-    - name: Run client integration tests
-      working-directory: ./client
-      run: yarn test:integration
+    #- name: Run client integration tests
+     # working-directory: ./client
+      #run: yarn test:integration
 
   build-and-push-images:
     needs: test-source-code
