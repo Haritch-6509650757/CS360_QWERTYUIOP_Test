@@ -102,18 +102,18 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.SSH_USER }}@${{ env.INSTANCE_PUBLIC_DNS }} << EOF
           sudo yum install -y docker
           sudo service docker start
-          echo "BACKEND"
+          echo "Api"
           sudo docker pull $REPOSITORYBACK:latest
-          sudo docker run -d --name backend_savetofocus \
+          sudo docker run -d --name foodadvisor-api \
           -p 1337:1337 \
           -e HOST=0.0.0.0 \
           -e PORT=1337 \
           -e STRAPI_ADMIN_CLIENT_URL=http://${INSTANCE_PUBLIC_IPV4}:3000 \
           -e STRAPI_ADMIN_CLIENT_PREVIEW_SECRET=${{ secrets.ADMIN_JWT_SECRET }} \
           $REPOSITORY:latest
-          echo "FRONTEND"
+          echo "Client"
           sudo docker pull $REPOSITORYFRONT:latest
-          sudo docker run -d --name frontend_savetofocus \
+          sudo docker run -d --name foodadvisor-client \
           -p 3000:3000 \
           -e NEXT_PUBLIC_API_URL=http://${INSTANCE_PUBLIC_IPV4}:1337 \
           -e PREVIEW_SECRET=${{ secrets.JWT_SECRET }} \
