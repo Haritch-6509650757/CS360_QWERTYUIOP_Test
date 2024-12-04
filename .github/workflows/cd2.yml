@@ -1,10 +1,7 @@
 name: CD - Deploy to EC2 with Docker (Human trigger)
 
 on:
-  # push:
-  #   branches:
-  #     - main
- workflow_dispatch: 
+  workflow_dispatch:
 
 jobs:
   check-image-and-deploy:
@@ -14,7 +11,7 @@ jobs:
       # Step 1: Checkout code
       - name: Checkout Repository
         uses: actions/checkout@v3    
-        
+
       # Step 2: Check if Docker Image Exists
       - name: Check if Docker Image Exists API
         id: check_image_API
@@ -28,11 +25,10 @@ jobs:
           fi
           echo "Docker image exists. Proceeding to deployment."
 
-      # Step 2: Check if Docker Image Exists
-      - name: Check if Docker Image Exists foodadvisor-client
+      - name: Check if Docker Image Exists Client
         id: check_image_client
         run: |
-          REPOSITORYCLIENT="${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-client"  
+          REPOSITORYCLIENT="${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-client"
           TAG="latest"
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u "${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}" https://hub.docker.com/v2/repositories/${REPOSITORYCLIENT}/tags/${TAG}/)
           if [ "$RESPONSE" -ne 200 ]; then
@@ -43,7 +39,7 @@ jobs:
 
       # Step 3: Set AWS Credentials in Environment Variables
       - name: Set AWS Credentials
-        if: ${{ steps.check_image_backend.outcome == 'success' && steps.check_image_frontend.outcome == 'success'}}
+        if: ${{ steps.check_image_API.outcome == 'success' && steps.check_image_client.outcome == 'success' }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -59,7 +55,6 @@ jobs:
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
-          # Define instance details
           INSTANCE_ID=$(aws ec2 run-instances \
             --image-id ami-06b21ccaeff8cd686 \
             --instance-type t2.medium \
@@ -71,10 +66,8 @@ jobs:
 
           echo "Instance ID: $INSTANCE_ID"
 
-          # Wait for the instance to be running
           aws ec2 wait instance-running --instance-ids $INSTANCE_ID
 
-          # Output the instance public DNS
           INSTANCE_PUBLIC_DNS=$(aws ec2 describe-instances \
             --instance-ids $INSTANCE_ID \
             --query 'Reservations[0].Instances[0].PublicDnsName' \
@@ -82,48 +75,43 @@ jobs:
           echo "Instance Public DNS: $INSTANCE_PUBLIC_DNS"
           echo "INSTANCE_PUBLIC_DNS=$INSTANCE_PUBLIC_DNS" >> $GITHUB_ENV
 
-
           INSTANCE_PUBLIC_IPV4=$(aws ec2 describe-instances \
             --instance-ids $INSTANCE_ID \
             --query 'Reservations[0].Instances[0].PublicIpAddress' \
             --output text)
           echo "Instance Public IPv4: $INSTANCE_PUBLIC_IPV4"
           echo "INSTANCE_PUBLIC_IPV4=$INSTANCE_PUBLIC_IPV4" >> $GITHUB_ENV
-          sleep 5
 
       # Step 5: Deploying the Web Application to EC2
       - name: Connect server and pull image Frontend/Backend
         env:
           PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
+          INSTANCE_PUBLIC_IPV4: ${{ env.INSTANCE_PUBLIC_IPV4 }}
+          INSTANCE_PUBLIC_DNS: ${{ env.INSTANCE_PUBLIC_DNS }}
           REPOSITORYAPI: ${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api
           REPOSITORYCLIENT: ${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-client
         run: |
           echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
-          ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.SSH_USER }}@${{ env.INSTANCE_PUBLIC_DNS }} << 'EOF'
-          set -e 
+          ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.SSH_USER }}@${{ env.INSTANCE_PUBLIC_DNS }} << EOF
           sudo yum install -y docker
-          sudo systemctl start docker.service
-      
+          sudo systemctl start docker
+
           echo "Deploying API"
-          echo "API Repository: $REPOSITORYAPI"
           sudo docker pull $REPOSITORYAPI:latest
           sudo docker run -d --name foodadvisor-api \
             -p 1337:1337 \
             -e HOST=0.0.0.0 \
             -e PORT=1337 \
             -e STRAPI_ADMIN_CLIENT_URL=http://${INSTANCE_PUBLIC_IPV4}:3000 \
-            -e STRAPI_ADMIN_CLIENT_PREVIEW_SECRET=${ADMIN_JWT_SECRET} \
             $REPOSITORYAPI:latest
-      
-          echo "Deploying CLIENT"
-          echo "Client Repository: $REPOSITORYCLIENT"
+
+          echo "Deploying Client"
           sudo docker pull $REPOSITORYCLIENT:latest
           sudo docker run -d --name foodadvisor-client \
             -p 3000:3000 \
             -e NEXT_PUBLIC_API_URL=http://${INSTANCE_PUBLIC_IPV4}:1337 \
-            -e PREVIEW_SECRET=${ADMIN_JWT_SECRET} \
-            ${REPOSITORYCLIENT}:latest
-      
-          echo API http://${INSTANCE_PUBLIC_IPV4}:1337/
-          echo CLIENT http://${INSTANCE_PUBLIC_IPV4}:3000/
+            $REPOSITORYCLIENT:latest
+
+          echo "Deployed API: http://${INSTANCE_PUBLIC_IPV4}:1337/"
+          echo "Deployed Client: http://${INSTANCE_PUBLIC_IPV4}:3000/"
           EOF
