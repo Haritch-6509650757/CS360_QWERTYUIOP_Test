@@ -95,34 +95,34 @@ jobs:
       - name: Connect server and pull image Frontend/Backend
         env:
           PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
-          REPOSITORYBACK: "${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api"
-          REPOSITORYFRONT: "${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-client"
+          REPOSITORYAPI: "${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api"
+          REPOSITORYCLIENT: "${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-client"
         run: |
           echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
           ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.SSH_USER }}@${{ env.INSTANCE_PUBLIC_DNS }} << 'EOF'
-          set -e  # ทำให้สคริปต์หยุดเมื่อเจอข้อผิดพลาด
+          set -e 
           sudo yum install -y docker
           sudo service docker start
       
           echo "Deploying API"
-          echo "API Repository: ${REPOSITORYBACK}"
-          sudo docker pull ${REPOSITORYBACK}:latest
+          echo "API Repository: ${REPOSITORYAPI}"
+          sudo docker pull ${REPOSITORYAPI}:latest
           sudo docker run -d --name foodadvisor-api \
             -p 1337:1337 \
             -e HOST=0.0.0.0 \
             -e PORT=1337 \
             -e STRAPI_ADMIN_CLIENT_URL=http://${INSTANCE_PUBLIC_IPV4}:3000 \
             -e STRAPI_ADMIN_CLIENT_PREVIEW_SECRET=${ADMIN_JWT_SECRET} \
-            ${REPOSITORYBACK}:latest
+            ${REPOSITORYAPI}:latest
       
           echo "Deploying CLIENT"
-          echo "Client Repository: ${REPOSITORYFRONT}"
-          sudo docker pull ${REPOSITORYFRONT}:latest
+          echo "Client Repository: ${REPOSITORYCLIENT}"
+          sudo docker pull ${REPOSITORYCLIENT}:latest
           sudo docker run -d --name foodadvisor-client \
             -p 3000:3000 \
             -e NEXT_PUBLIC_API_URL=http://${INSTANCE_PUBLIC_IPV4}:1337 \
             -e PREVIEW_SECRET=${ADMIN_JWT_SECRET} \
-            ${REPOSITORYFRONT}:latest
+            ${REPOSITORYCLIENT}:latest
       
           echo "API http://${INSTANCE_PUBLIC_IPV4}:1337/"
           echo "CLIENT http://${INSTANCE_PUBLIC_IPV4}:3000/"
