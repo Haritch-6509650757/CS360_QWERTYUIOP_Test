@@ -17,7 +17,7 @@ jobs:
         id: check_image_backend
         run: |
           REPOSITORY="${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api"
-          
+          TAG="latest"
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u "${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}" https://hub.docker.com/v2/repositories/${REPOSITORY}/tags/${TAG}/)
           if [ "$RESPONSE" -ne 200 ]; then
               echo "Docker image not found. Exiting workflow."
@@ -30,7 +30,7 @@ jobs:
         id: check_image_frontend
         run: |
           REPOSITORY="${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-client"
-          
+          TAG="latest"
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u "${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_TOKEN }}" https://hub.docker.com/v2/repositories/${REPOSITORY}/tags/${TAG}/)
           if [ "$RESPONSE" -ne 200 ]; then
               echo "Docker image not found. Exiting workflow."
