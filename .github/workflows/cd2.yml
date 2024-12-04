@@ -19,7 +19,7 @@ jobs:
       - name: Check if Docker Image Exists API
         id: check_image_API
         run: |
-          REPOSITORY="${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api"  # Replace with your DockerHub repository name
+          REPOSITORYAPI="${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api" 
           TAG="latest"
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u "${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}" https://hub.docker.com/v2/repositories/${REPOSITORY}/tags/${TAG}/)
           if [ "$RESPONSE" -ne 200 ]; then
@@ -32,7 +32,7 @@ jobs:
       - name: Check if Docker Image Exists foodadvisor-client
         id: check_image_client
         run: |
-          REPOSITORY="${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-client"  # Replace with your DockerHub repository name
+          REPOSITORYCLIENT="${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-client"  # Replace with your DockerHub repository name
           TAG="latest"
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u "${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}" https://hub.docker.com/v2/repositories/${REPOSITORY}/tags/${TAG}/)
           if [ "$RESPONSE" -ne 200 ]; then
@@ -95,15 +95,15 @@ jobs:
       - name: Connect server and pull image Frontend/Backend
         env:
             PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
-            REPOSITORYBACK: "${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api"
-            REPOSITORYFRONT: "${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-client"
+            #REPOSITORYBACK: "${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api"
+            #REPOSITORYFRONT: "${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-client"
         run: |
           echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
           ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.SSH_USER }}@${{ env.INSTANCE_PUBLIC_DNS }} << EOF
           sudo yum install -y docker
           sudo service docker start
           echo "API"
-          sudo docker pull $REPOSITORY:latest
+          sudo docker pull $REPOSITORYAPI:latest
           sudo docker run -d --name foodadvisor-api \
           -p 1337:1337 \
           -e HOST=0.0.0.0 \
@@ -112,7 +112,7 @@ jobs:
           -e STRAPI_ADMIN_CLIENT_PREVIEW_SECRET=${{ secrets.ADMIN_JWT_SECRET }} \
           $REPOSITORYBACK:latest
           echo "FRONTEND"
-          sudo docker pull $REPOSITORYFRONT:latest
+          sudo docker pull $REPOSITORYCLIENT:latest
           sudo docker run -d --name foodadvisor-client \
           -p 3000:3000 \
           -e NEXT_PUBLIC_API_URL=http://${INSTANCE_PUBLIC_IPV4}:1337 \
