@@ -10,11 +10,19 @@ jobs:
     steps:
       # Step 1: Checkout code
       - name: Checkout Repository
-        uses: actions/checkout@v3    
+        uses: actions/checkout@v3
 
-      # Step 2: Check if Docker Image Exists for Backend
-      - name: Check if Docker Image Exists - Backend
-        id: check_image_backend
+      # Step 2: Generate JWT_SECRET
+      - name: Generate JWT_SECRET
+        id: generate_jwt_secret
+        run: |
+          JWT_SECRET= $(node -e "console.log(require('crypto').randomBytes(16).toString('base64'))")
+          echo "JWT_SECRET=$JWT_SECRET" >> $GITHUB_ENV
+          echo "JWT_SECRET generated and stored in Github environment"
+
+      # Step 3: Check if Docker Image Exists for Backend
+      - name: Check if Docker Image Exists - Api
+        id: check_image_foodadvisor-api
         run: |
           REPOSITORY="${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api"
           TAG="latest"
@@ -25,9 +33,9 @@ jobs:
           fi
           echo "Docker image exists. Proceeding to deployment."
 
-      # Step 3: Check if Docker Image Exists for Frontend
-      - name: Check if Docker Image Exists - Frontend
-        id: check_image_frontend
+      # Step 4: Check if Docker Image Exists for Frontend
+      - name: Check if Docker Image Exists - Client
+        id: check_image_foodadvisor-client
         run: |
           REPOSITORY="${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-client"
           TAG="latest"
@@ -38,7 +46,7 @@ jobs:
           fi
           echo "Docker image exists. Proceeding to deployment."
 
-      # Step 4: Set AWS Credentials
+      # Step 5: Set AWS Credentials
       - name: Set AWS Credentials
         if: ${{ steps.check_image_backend.outcome == 'success' && steps.check_image_frontend.outcome == 'success'}}
         env:
@@ -48,8 +56,7 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
         run: echo "AWS credentials set."
 
-      # Step 5: Create EC2 Instance and Deploy the Application
-      
+      # Step 6: Create EC2 Instance and Deploy the Application
       - name: Create EC2 Instance and Deploy the Application
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -136,6 +143,7 @@ jobs:
             -e PORT=1337 \
             -e STRAPI_ADMIN_CLIENT_URL=http://${{ env.INSTANCE_PUBLIC_IPV4 }}:3000/ \
             -e STRAPI_ADMIN_CLIENT_PREVIEW_SECRET=ARNFCb9zrC9ZHm5hZzCigWivD40icS4s \
+            -e JWT_SECRET=${JWT_SECRET} \
             -v /path/on/host/uploads:/app/public/uploads \
             -d ${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api:latest || { echo "Failed to run backend container"; exit 1; }
             
