@@ -81,6 +81,7 @@ jobs:
             --output text)
           echo "Instance Public IPv4: $INSTANCE_PUBLIC_IPV4"
           echo "INSTANCE_PUBLIC_IPV4=$INSTANCE_PUBLIC_IPV4" >> $GITHUB_ENV
+          sleep 5
 
       # Step 5: Deploying the Web Application to EC2
       - name: Connect server and pull image Frontend/Backend
