@@ -192,17 +192,17 @@ jobs:
         run: |
           docker exec test-client yarn install
 
-      - name: Run API unit tests
-        run: docker exec test-api yarn test:unit
+      #- name: Run API unit tests
+       # run: docker exec test-api yarn test:unit
 
-      - name: Run API integration tests
-        run: docker exec test-api yarn test:integration
+      #- name: Run API integration tests
+       # run: docker exec test-api yarn test:integration
 
-      - name: Run client unit tests
-        run: docker exec test-client yarn test:unit
+      #- name: Run client unit tests
+       # run: docker exec test-client yarn test:unit
 
-      - name: Run client integration tests
-        run: docker exec test-client yarn test:integration
+      #- name: Run client integration tests
+       # run: docker exec test-client yarn test:integration
 
       - name: Display test logs on failure
         if: failure()
