@@ -12,14 +12,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Step 2: Generate JWT_SECRET
-      - name: Generate JWT_SECRET
-        id: generate_jwt_secret
-        run: |
-          JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(16).toString('base64'))")
-          echo "JWT_SECRET=$JWT_SECRET" >> $GITHUB_ENV
-          echo "JWT_SECRET generated and stored in Github environment"
-
       # Step 3: Check if Docker Image Exists for Backend
       - name: Check if Docker Image Exists - Api
         id: check_image_foodadvisor-api
@@ -143,7 +135,6 @@ jobs:
             -e PORT=1337 \
             -e STRAPI_ADMIN_CLIENT_URL=http://${{ env.INSTANCE_PUBLIC_IPV4 }}:3000/ \
             -e STRAPI_ADMIN_CLIENT_PREVIEW_SECRET=ARNFCb9zrC9ZHm5hZzCigWivD40icS4s \
-            -e JWT_SECRET=${JWT_SECRET} \
             -v /path/on/host/uploads:/app/public/uploads \
             -d ${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api:latest || { echo "Failed to run backend container"; exit 1; }
             
