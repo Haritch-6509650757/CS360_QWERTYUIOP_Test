@@ -17,7 +17,7 @@ jobs:
         id: check_image_backend
         run: |
           REPOSITORY="${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api"
-          TAG="latest"
+          
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u "${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}" https://hub.docker.com/v2/repositories/${REPOSITORY}/tags/${TAG}/)
           if [ "$RESPONSE" -ne 200 ]; then
               echo "Docker image not found. Exiting workflow."
@@ -30,7 +30,7 @@ jobs:
         id: check_image_frontend
         run: |
           REPOSITORY="${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-client"
-          TAG="latest"
+          
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u "${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_TOKEN }}" https://hub.docker.com/v2/repositories/${REPOSITORY}/tags/${TAG}/)
           if [ "$RESPONSE" -ne 200 ]; then
               echo "Docker image not found. Exiting workflow."
@@ -129,7 +129,7 @@ jobs:
           sudo systemctl restart docker
 
           # Pull and run the backend container
-          sudo docker pull ${{ secrets.DOCKER_USERNAME }}/foodadvisor-api:latest
+          sudo docker pull ${{ secrets.DOCKER_USERNAME }}/foodadvisor-api
           sudo docker run --name foodadvisor-api \
             -p 1337:1337 \
             -e HOST=0.0.0.0 \
@@ -137,7 +137,7 @@ jobs:
             -e STRAPI_ADMIN_CLIENT_URL=http://${{ env.INSTANCE_PUBLIC_IPV4 }}:3000/ \
             -e STRAPI_ADMIN_CLIENT_PREVIEW_SECRET=ARNFCb9zrC9ZHm5hZzCigWivD40icS4s \
             -v /path/on/host/uploads:/app/public/uploads \
-            -d ${{ secrets.DOCKER_USERNAME }}/foodadvisor-api:latest || { echo "Failed to run backend container"; exit 1; }
+            -d ${{ secrets.DOCKER_USERNAME }}/foodadvisor-api || { echo "Failed to run backend container"; exit 1; }
             
           
           # ตรวจสอบสถานะของ backend container
@@ -152,11 +152,11 @@ jobs:
           
           # Pull และ run frontend container
           echo "Deploying Frontend Container..."
-          sudo docker pull ${{ secrets.DOCKER_USERNAME }}/foodadvisor-client:latest
+          sudo docker pull ${{ secrets.DOCKER_USERNAME }}/foodadvisor-client
           sudo docker run --name foodadvisor-client \
             -p 3000:3000 \
             -e NEXT_PUBLIC_API_URL=http://${{ env.INSTANCE_PUBLIC_IPV4 }}:1337/ \
             -e PREVIEW_SECRET=ARNFCb9zrC9ZHm5hZzCigWivD40icS4s \
-            -d ${{ secrets.DOCKER_USERNAME }}/foodadvisor-client:latest /bin/bash -c "npm install && npm run build && npm start"
+            -d ${{ secrets.DOCKER_USERNAME }}/foodadvisor-client /bin/bash -c "npm install && npm run build && npm start"
           
           EOF
