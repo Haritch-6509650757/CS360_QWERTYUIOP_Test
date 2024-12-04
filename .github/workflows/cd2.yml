@@ -19,7 +19,7 @@ jobs:
       - name: Check if Docker Image Exists API
         id: check_image_API
         run: |
-          REPOSITORY="${{ secrets.DOCKER_USERNAME }}/foodadvisor-api"  # Replace with your DockerHub repository name
+          REPOSITORY="${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api"  # Replace with your DockerHub repository name
           TAG="latest"
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u "${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}" https://hub.docker.com/v2/repositories/${REPOSITORY}/tags/${TAG}/)
           if [ "$RESPONSE" -ne 200 ]; then
