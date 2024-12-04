@@ -114,14 +114,14 @@ jobs:
             -e STRAPI_ADMIN_CLIENT_PREVIEW_SECRET=${{ secrets.JWT_SECRET }} \
             $REPOSITORYAPI:latest
 
-          #echo "Checking API Container Status..."
-          #API_STATUS=$(sudo docker inspect -f '{{.State.Status}}' foodadvisor-api)
-          #if [ "$API_STATUS" != "running" ]; then
-            #echo "API container failed to start. Check logs for details."
-            #sudo docker logs foodadvisor-api
-            #exit 1
-          #fi
-          #echo "foodadvisor-api deployed successfully."
+          # echo "Checking API Container Status..."
+          # API_STATUS=$(sudo docker inspect -f '{{.State.Status}}' foodadvisor-api)
+          # if [ "$API_STATUS" != "running" ]; then
+            # echo "API container failed to start. Check logs for details."
+            # sudo docker logs foodadvisor-api
+            # exit 1
+          # fi
+          # echo "foodadvisor-api deployed successfully."
 
           echo "Deploying Client"
           sudo docker pull $REPOSITORYCLIENT:latest
