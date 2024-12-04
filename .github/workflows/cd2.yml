@@ -19,7 +19,7 @@ jobs:
       - name: Check if Docker Image Exists API
         id: check_image_API
         run: |
-          REPOSITORYAPI="${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api" 
+          REPOSITORYAPI="${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api"
           TAG="latest"
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u "${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}" https://hub.docker.com/v2/repositories/${REPOSITORYAPI}/tags/${TAG}/)
           if [ "$RESPONSE" -ne 200 ]; then
@@ -32,7 +32,7 @@ jobs:
       - name: Check if Docker Image Exists foodadvisor-client
         id: check_image_client
         run: |
-          REPOSITORYCLIENT="${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-client"  # Replace with your DockerHub repository name
+          REPOSITORYCLIENT="${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-client"  
           TAG="latest"
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u "${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}" https://hub.docker.com/v2/repositories/${REPOSITORYCLIENT}/tags/${TAG}/)
           if [ "$RESPONSE" -ne 200 ]; then
@@ -94,37 +94,35 @@ jobs:
       # Step 5: Deploying the Web Application to EC2
       - name: Connect server and pull image Frontend/Backend
         env:
-            PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
-            REPOSITORYAPI: ${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api
-            REPOSITORYCLIENT: ${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-client
-            INSTANCE_PUBLIC_DNS: ${{ env.INSTANCE_PUBLIC_DNS }}
-            INSTANCE_PUBLIC_IPV4: ${{ env.INSTANCE_PUBLIC_IPV4 }}
+          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
+          REPOSITORYBACK: "${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-api"
+          REPOSITORYFRONT: "${{ secrets.DOCKERHUB_USERNAME }}/foodadvisor-client"
         run: |
           echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
           ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.SSH_USER }}@${{ env.INSTANCE_PUBLIC_DNS }} << EOF
           sudo yum install -y docker
-          sudo systemctl start docker.service
-          
+          sudo service docker start
+      
           echo "Deploying API"
-          echo "API Repository: $REPOSITORYAPI"
-          sudo docker pull $REPOSITORYAPI:latest
+          echo "API Repository: $REPOSITORYBACK"
+          sudo docker pull $REPOSITORYBACK:latest || exit 1
           sudo docker run -d --name foodadvisor-api \
-          -p 1337:1337 \
-          -e HOST=0.0.0.0 \
-          -e PORT=1337 \
-          -e STRAPI_ADMIN_CLIENT_URL=http://${INSTANCE_PUBLIC_IPV4}:3000 \
-          -e STRAPI_ADMIN_CLIENT_PREVIEW_SECRET=${{ secrets.ADMIN_JWT_SECRET }} \
-          $REPOSITORAPI:latest
-          
+            -p 1337:1337 \
+            -e HOST=0.0.0.0 \
+            -e PORT=1337 \
+            -e STRAPI_ADMIN_CLIENT_URL=http://${INSTANCE_PUBLIC_IPV4}:3000 \
+            -e STRAPI_ADMIN_CLIENT_PREVIEW_SECRET=${{ secrets.ADMIN_JWT_SECRET }} \
+            $REPOSITORYBACK:latest || exit 1
+      
           echo "Deploying CLIENT"
-          echo "Client Repository: $REPOSITORYCLIENT"
-          sudo docker pull $REPOSITORYCLIENT:latest
+          echo "Client Repository: $REPOSITORYFRONT"
+          sudo docker pull $REPOSITORYFRONT:latest || exit 1
           sudo docker run -d --name foodadvisor-client \
-          -p 3000:3000 \
-          -e NEXT_PUBLIC_API_URL=http://${INSTANCE_PUBLIC_IPV4}:1337 \
-          -e PREVIEW_SECRET=${{ secrets.ADMIN_JWT_SECRET }} \
-          $REPOSITORYCLIENT:latest
-          
-          echo API http://${INSTANCE_PUBLIC_IPV4}:1337/
-          echo CLIENT http://${INSTANCE_PUBLIC_IPV4}:3000/
+            -p 3000:3000 \
+            -e NEXT_PUBLIC_API_URL=http://${INSTANCE_PUBLIC_IPV4}:1337 \
+            -e PREVIEW_SECRET=${{ secrets.ADMIN_JWT_SECRET }} \
+            $REPOSITORYFRONT:latest || exit 1
+      
+          echo "API http://${INSTANCE_PUBLIC_IPV4}:1337/"
+          echo "CLIENT http://${INSTANCE_PUBLIC_IPV4}:3000/"
           EOF
