@@ -114,30 +114,12 @@ jobs:
             -e STRAPI_ADMIN_CLIENT_PREVIEW_SECRET=${{ secrets.JWT_SECRET }} \
             $REPOSITORYAPI:latest
 
-          # echo "Checking API Container Status..."
-          # API_STATUS=$(sudo docker inspect -f '{{.State.Status}}' foodadvisor-api)
-          # if [ "$API_STATUS" != "running" ]; then
-            # echo "API container failed to start. Check logs for details."
-            # sudo docker logs foodadvisor-api
-            # exit 1
-          # fi
-          # echo "foodadvisor-api deployed successfully."
-
           echo "Deploying Client"
           sudo docker pull $REPOSITORYCLIENT:latest
           sudo docker run -d --name foodadvisor-client \
             -p 3000:3000 \
             -e NEXT_PUBLIC_API_URL=http://${INSTANCE_PUBLIC_IPV4}:1337 \
-            $REPOSITORYCLIENT:latest
-
-          echo "Checking Client Container Status..."
-          CLIENT_STATUS=$(sudo docker inspect -f '{{.State.Status}}' foodadvisor-client)
-          if [ "$CLIENT_STATUS" != "running" ]; then
-            echo "API container failed to start. Check logs for details."
-            sudo docker logs foodadvisor-client
-            exit 1
-          fi
-          echo "foodadvisor-client deployed successfully."  
+            $REPOSITORYCLIENT:latest  
 
           echo "Deployed API: http://${INSTANCE_PUBLIC_IPV4}:1337/"
           echo "Deployed Client: http://${INSTANCE_PUBLIC_IPV4}:3000/"
