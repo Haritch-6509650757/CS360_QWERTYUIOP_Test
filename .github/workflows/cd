@@ -1,0 +1,162 @@
+name: CD - Deploy to EC2 with Docker (Human trigger) test
+
+on:
+  workflow_dispatch: 
+
+jobs:
+  check-image-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout Repository
+        uses: actions/checkout@v3    
+
+      # Step 2: Check if Docker Image Exists for Backend
+      - name: Check if Docker Image Exists - Backend
+        id: check_image_backend
+        run: |
+          REPOSITORY="${{ secrets.DOCKER_USERNAME }}/cs360_test_backend"
+          TAG="latest"
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u "${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_TOKEN }}" https://hub.docker.com/v2/repositories/${REPOSITORY}/tags/${TAG}/)
+          if [ "$RESPONSE" -ne 200 ]; then
+              echo "Docker image not found. Exiting workflow."
+              exit 1
+          fi
+          echo "Docker image exists. Proceeding to deployment."
+
+      # Step 3: Check if Docker Image Exists for Frontend
+      - name: Check if Docker Image Exists - Frontend
+        id: check_image_frontend
+        run: |
+          REPOSITORY="${{ secrets.DOCKER_USERNAME }}/cs360_test_frontend"
+          TAG="latest"
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u "${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_TOKEN }}" https://hub.docker.com/v2/repositories/${REPOSITORY}/tags/${TAG}/)
+          if [ "$RESPONSE" -ne 200 ]; then
+              echo "Docker image not found. Exiting workflow."
+              exit 1
+          fi
+          echo "Docker image exists. Proceeding to deployment."
+
+      # Step 4: Set AWS Credentials
+      - name: Set AWS Credentials
+        if: ${{ steps.check_image_backend.outcome == 'success' && steps.check_image_frontend.outcome == 'success'}}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: echo "AWS credentials set."
+
+      # Step 5: Create EC2 Instance and Deploy the Application
+      
+      - name: Create EC2 Instance and Deploy the Application
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          # Install AWS CLI if not installed
+          sudo apt-get install awscli -y
+          
+          # Define instance details
+          INSTANCE_ID=$(aws ec2 run-instances \
+            --image-id ami-06b21ccaeff8cd686 \
+            --instance-type t2.medium \
+            --key-name ${{ secrets.AWS_KP_NAME }} \
+            --security-group-ids ${{ secrets.AWS_SG_ID }} \
+            --user-data file://user-data.sh \
+            --query 'Instances[0].InstanceId' \
+            --output text)
+      
+          echo "Instance ID: $INSTANCE_ID"
+          sleep 30
+      
+          # Wait for the instance to be running
+          aws ec2 wait instance-running --instance-ids $INSTANCE_ID
+      
+          # Output the instance public DNS
+          INSTANCE_PUBLIC_DNS=$(aws ec2 describe-instances \
+            --instance-ids $INSTANCE_ID \
+            --query 'Reservations[0].Instances[0].PublicDnsName' \
+            --output text)
+          echo "Instance Public DNS: $INSTANCE_PUBLIC_DNS"
+          echo "INSTANCE_PUBLIC_DNS=$INSTANCE_PUBLIC_DNS" >> $GITHUB_ENV
+      
+          # Output the instance public IPv4
+          INSTANCE_PUBLIC_IPV4=$(aws ec2 describe-instances \
+            --instance-ids $INSTANCE_ID \
+            --query 'Reservations[0].Instances[0].PublicIpAddress' \
+            --output text)
+          echo "Instance Public IPv4: $INSTANCE_PUBLIC_IPV4"
+          echo "INSTANCE_PUBLIC_IPV4=$INSTANCE_PUBLIC_IPV4" >> $GITHUB_ENV
+
+          
+      # Step 6: Connect to EC2 Instance and Deploy Backend & Frontend
+      - name: Connect and Deploy Docker Containers on EC2
+        env:
+          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
+          REPOSITORYBACK: "${{ secrets.DOCKER_USERNAME }}/cs360_test_backend"
+          REPOSITORYFRONT: "${{ secrets.DOCKER_USERNAME }}/cs360_test_frontend"
+        run: |
+          # Save the private key from the secret to a file
+          echo "$PRIVATE_KEY" > private_key.pem
+          
+          # Ensure the correct permissions for the private key
+          chmod 600 private_key.pem
+          
+          # Debugging step to print out variables
+          echo "SSH User: ${{ secrets.SSH_USER }}"
+          echo "EC2 Instance DNS: ${{ env.INSTANCE_PUBLIC_DNS }}"
+          
+          # Test the SSH connection
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.SSH_USER }}@${{ env.INSTANCE_PUBLIC_DNS }} << 'EOF'
+  
+          # Install Docker if not already installed
+          if ! command -v docker &> /dev/null; then
+            echo "Docker not found. Installing..."
+            sudo yum install -y docker
+            sudo systemctl start docker
+          else
+            echo "Docker is already installed."
+          fi
+
+          # เพิ่มผู้ใช้ไปยังกลุ่ม docker
+          sudo usermod -aG docker $USER
+
+          # รีสตาร์ทบริการ docker เพื่อให้การเปลี่ยนแปลงมีผล
+          sudo systemctl restart docker
+
+          # Pull and run the backend container
+          sudo docker pull ${{ secrets.DOCKER_USERNAME }}/cs360_test_backend:latest
+          sudo docker run --name cs360_test_backend \
+            -p 1337:1337 \
+            -e HOST=0.0.0.0 \
+            -e PORT=1337 \
+            -e STRAPI_ADMIN_CLIENT_URL=http://${{ env.INSTANCE_PUBLIC_IPV4 }}:3000/ \
+            -e STRAPI_ADMIN_CLIENT_PREVIEW_SECRET=ARNFCb9zrC9ZHm5hZzCigWivD40icS4s \
+            -v /path/on/host/uploads:/app/public/uploads \
+            -d ${{ secrets.DOCKER_USERNAME }}/cs360_test_backend:latest || { echo "Failed to run backend container"; exit 1; }
+            
+          
+          # ตรวจสอบสถานะของ backend container
+          echo "Checking Backend Container Status..."
+          BACKEND_STATUS=$(sudo docker inspect -f '{{.State.Status}}' cs360_test_backend)
+          if [ "$BACKEND_STATUS" != "running" ]; then
+            echo "Backend container failed to start. Check logs for details."
+            sudo docker logs cs360_test_backend
+            exit 1
+          fi
+          echo "Backend deployed successfully."
+          
+          # Pull และ run frontend container
+          echo "Deploying Frontend Container..."
+          sudo docker pull ${{ secrets.DOCKER_USERNAME }}/cs360_test_frontend:latest
+          sudo docker run --name cs360_test_frontend \
+            -p 3000:3000 \
+            -e NEXT_PUBLIC_API_URL=http://${{ env.INSTANCE_PUBLIC_IPV4 }}:1337/ \
+            -e PREVIEW_SECRET=ARNFCb9zrC9ZHm5hZzCigWivD40icS4s \
+            -d ${{ secrets.DOCKER_USERNAME }}/cs360_test_frontend:latest /bin/bash -c "npm install && npm run build && npm start"
+          
+          EOF
