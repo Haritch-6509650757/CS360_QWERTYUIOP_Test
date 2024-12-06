@@ -1,4 +1,4 @@
-name: CI - Test Source Code and Docker Image
+name: CI - Tae
 
 on:
    workflow_dispatch: 
